@@ -1,0 +1,67 @@
+# -*- coding: utf-8 -*-
+import numpy as np
+import random
+from svm import *
+from svmutil import *
+
+#number of runs for CV
+numruns=100
+#
+def loadinfo(url):
+#read data files indata.txt and outdata.txt
+    in_dta = np.genfromtxt(url, dtype=float)
+    return in_dta
+def treatdata(in_dta,ncol,cat):
+#    load from in_dta the sets, ncol is the number of columns, first column is label
+    inp=in_dta[:,[1,ncol]]
+    y=np.transpose(in_dta[:,[0]])[0]
+#if 2 cat then one versus the other otherwise first versus all
+    index= [i for i, e in enumerate(y) if e == cat[0]]
+    points = [inp[i] for i in index]
+    yval = [1 for i in index]   
+    for i in range(len(cat)):
+        if(cat[i] !=cat[0]):
+            indexi= [j for j, e in enumerate(y) if e == cat[i]]
+            pointsi = [inp[j] for j in indexi]
+            points=np.concatenate((points,pointsi),axis=0)
+            yi = [-1 for j in indexi]
+            yval=np.append(yval,yi)
+    numinpoints=len(points)
+    return numinpoints,yval,points
+#
+def mixdata(yin,inpoints):    
+    random.seed()
+    inpmix=random.sample(zip(yin,inpoints),len(yin))
+    y=[inpmix[i][0] for i in range(len(inpmix))]
+    inp = [inpmix[i][1].tolist() for i in range(len(inpmix))]
+    return y,inp
+#
+#now do the job
+#read files
+in_dta = loadinfo("http://www.amlbook.com/data/zip/features.train")
+out_dta= loadinfo("http://www.amlbook.com/data/zip/features.test")
+#cat=(0,1,2,3,4,5,6,7,8,9,0)
+for i in range(1):
+    cat=(1,5)
+    s=str(cat[0])+"versus_"
+    for i in range(len(cat)):
+        if(cat[0]!=cat[i]):s=s+str(cat[i])
+    print "--------------------------------------"
+    print s
+#extract the training set from the data
+    innum,yin,inpoints=treatdata(in_dta,2,cat)
+#doing svm on training points
+    C=[0.0001,0.001,0.01,0.1,1.]
+    win=[0]*len(C)
+    ecv=[0]*len(C)
+    while(numruns>0):
+        ymix,inpmix=mixdata(yin,inpoints)
+        prob = svm_problem(ymix, inpmix)
+        for i in range(len(C)):
+            ecv[i]=100-svm_train(prob,"-t 1 -d 2 -c "+str(C[i])+" -r 1. -g 1. -v 10 -q -s 0 -h 0")
+        win[[i for i, v in enumerate(zip(ecv,C)) if v[0]==min(ecv)][0]]+=1
+        numruns-=1
+
+print "wining classes \n"
+print win
+
